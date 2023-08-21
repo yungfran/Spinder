@@ -1,22 +1,46 @@
 import logo from './logo.svg';
 import './App.css';
-
-
+import axios from 'axios';
+import { useLocation } from 'react-router-dom';
+import {useEffect, useState} from 'react';
+import LoggedIn from './LoggedIn';
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <button>
-          Login
-        </button>
-      </header>
-    </div>
-  );
+
+  /* Stores whether or not we are logged in*/ 
+  const [accessToken, setAccessToken] = useState('')
+  const [refreshToken, setRefreshToken] = useState('')
+
+  useEffect( () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const access = searchParams.get('access_token');
+    const refresh = searchParams.get('refresh_token');
+    
+    if(access){
+      setAccessToken(access)
+    }
+
+    if (refresh){
+      setRefreshToken(refresh)
+    }
+
+  }, [accessToken,refreshToken]);
+
+
+  if(!accessToken){
+    return (
+      <div className="App">
+          <a href="http://localhost:8888/login">
+            Logins
+          </a>
+      </div>
+    );
+  } else {
+    return (
+      <LoggedIn access={accessToken} refresh = {refreshToken}/>
+    )
+  }
+
 }
 
 export default App;
