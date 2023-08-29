@@ -1,14 +1,23 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
+import * as statistics from 'simple-statistics';
+
 /* Props store access and refresh token*/
 function LoggedIn( props ) {
 
     const [accessToken,setAccess] = useState(props.access)
     const [refreshToken,setRefresh] = useState(props.refresh)
-    const [userSongs, setUserSongs] = useState(new Set()); /* Used to calculate musical score avgs*/
-    const [userArtists,setUserArtists] = useState(new Map()); /* Used for genre counts*/
-    const [genreCounts, setGenreCounts] = useState(new Map());
-    
+    const [userSongs, setUserSongs] = useState(new Set()); /* Stores the songs the user has saved to playlist */
+    const [userArtists,setUserArtists] = useState(new Map()); /* Used for genre counts */
+    const [genreCounts, setGenreCounts] = useState(new Map()); /* Counts the genres the user listens to */
+
+    const [topTrackFeatures, setTopTrackFeatures] = useState([]);
+
+    const [currentSonicTaste, setCurrentSonicTaste] = useState([]);
+
+    const NUM_SONGS_RETRIEVED_FROM_SAVED = 20
+
+
     /* Begin Access functions */
     async function checkToken () {
         const playlistURI =  "https://api.spotify.com/v1/me/playlists?limit=50"
@@ -28,8 +37,17 @@ function LoggedIn( props ) {
           };
         const response = await axios.get("http://localhost:8888/refresh_token", {params:queryParams}).catch(error => console.error(error));
         if (response) {
+            console.log("setting token")
             setAccess(response.data.access_token)
         }
+    }
+
+    async function getHeader() {
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+
+        return headers;
     }
 
      /* End Access functions */
@@ -92,8 +110,8 @@ function LoggedIn( props ) {
         }
 
         // Now all parsePlaylist calls have finished, you can call your additional function here
-        await getGenres();
-        console.log(genreCounts);
+        // await getGenres();
+        await getSavedSongs()
     }
 
     /* Gets all songs from a playlist and adds it to our songs set
@@ -169,14 +187,15 @@ function LoggedIn( props ) {
         For now pick genre[0] */
     async function parseGenreFromArtist(artist) {
         const genres = artist.genres
+        const artistCount = userArtists.get(artist)
 
         setGenreCounts( prevGenreCounts => {
             let newGenreCounts = new Map(prevGenreCounts);
             genres.map(genre => {
                 if (newGenreCounts.has(genre)){
-                    newGenreCounts.set(genre, newGenreCounts.get(genre) + 1)
+                    newGenreCounts.set(genre, newGenreCounts.get(genre) + artistCount)
                 } else {
-                    newGenreCounts.set(genre,1);
+                    newGenreCounts.set(genre,artistCount);
                 }
             })
             setGenreCounts(newGenreCounts)
@@ -196,14 +215,28 @@ function LoggedIn( props ) {
        console.log(allSongsString)
        // On the nth, cut it off at the length of allSongStrings
        for(let offset = 0; offset < (numCalls - 1); offset += 1){
-        let start = offset * charactersPerCall;
-        let end = (offset + 1) * charactersPerCall - 1;
+            let start = offset * charactersPerCall;
+            let end = (offset + 1) * charactersPerCall - 1;
 
-        getSong(startingSongURI+allSongsString.substring(start,end));
+            getSong(startingSongURI+allSongsString.substring(start,end));
        }
 
        //const songPromises = Array.from(userSongs).map(songId => getSong(songId))
+    }
 
+    async function getSavedSongs() {
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        const savedSongsURI = "https://api.spotify.com/v1/me/tracks"
+        let response = await axios.get(savedSongsURI,{headers})
+        console.log(response)
+        let nextSongsURI = response.data.next;
+        while (nextSongsURI !== null) {
+            response = await axios.get(nextSongsURI,{headers});
+            console.log(response)
+            nextSongsURI = response.data.next;
+        }
     }
 
     /* Given a song's spotify URI, return the */
@@ -216,15 +249,160 @@ function LoggedIn( props ) {
         console.log(response.data.tracks[1].artists)
     }
 
-    /* Analyzes the sounds the user likes. Danceability, Energy, etc*/
-    function calculateTastes() {
+    async function generateRecommendations() {
+       await analyzeSonicTastes();
+       await getRecommendations();
+    }
+
+    async function analyzeSonicTastes () {
+        const calculatedTastes = localStorage.getItem("sonicTaste");
+        console.log(calculatedTastes)
+        if (calculatedTastes === null || calculatedTastes === undefined){
+            console.log("calculating tastes")
+            await getTopSongsArtists("short_term")
+        } else {
+            console.log("doing nothing, already calculated")
+        }
+    }
+
+    /* Gets top songs for the term, 
+     Term is long_term, medium_term, short_term 
+    With top songs / artists, use them to feed into rec system
+    */
+    async function getTopSongsArtists(term) {
+        if(topTrackFeatures.length === 20) {
+            return
+        }
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        const topSongURI = "https://api.spotify.com/v1/me/top/tracks?time_range=" + term;
+        const response = await axios.get(topSongURI, { headers });
+        const tracks = response.data.items;
+
+        // Save the top 5 tracks for recommendation seed
+        const topTrackIds = tracks.map(track => track.id).slice(0,5);
+        
+        // Save the top 5 artists
+        const artists = tracks.map(track => track.artists[0].id).slice(0,5);
+    
+        // Fetch features and populate topTrackFeatures
+        const tracksPromise = tracks.map(track => addSongToTopSongsFeatures(track.id));
+        await Promise.all(tracksPromise);
+
+        // Now that topTrackFeatures is populated, proceed with the next steps
+        localStorage.setItem("topTracks", JSON.stringify(topTrackIds))
+        localStorage.setItem("topArtists", JSON.stringify(artists))
+    }
+    
+    /* Takes in a song ID and updates list containing song details*/
+    async function addSongToTopSongsFeatures(songId) {
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        let featureURI = "https://api.spotify.com/v1/audio-features/" + songId;
+        const response = await axios.get(featureURI,{headers})
+        setTopTrackFeatures( prevTopTrackFeatures =>
+            {
+                let newTopTrackFeatures = [...prevTopTrackFeatures, response.data]
+                setTopTrackFeatures(newTopTrackFeatures)
+                return [...prevTopTrackFeatures, response.data]
+            }
+        )
+    }
+
+    /* Can only provide 5 seed values
+        Randomly Generate how many tracks and artists to provide*/
+    async function getRecommendations () {
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        let recURI = "https://api.spotify.com/v1/recommendations?seed_artists="
+        const topArtists = JSON.parse(localStorage.getItem("topArtists"))
+        const topTracks = JSON.parse(localStorage.getItem("topTracks"))
+        const numSeedArtists =  Math.floor(Math.random() * 4) + 1; // Guarantees at least one artist
+        const numSeedTracks =  5 - numSeedArtists; // Fills up rest of seed space
+        
+        // Add Seed Tracks
+        for(let i = 0; i < numSeedArtists; i++ ){
+            recURI += topArtists[i]
+            if ( i + 1 !== numSeedArtists ) {
+                recURI += ","
+            }
+        }
+        
+        // Add Artists Tracks
+        recURI += "&seed_tracks"
+        for(let i = 0; i < numSeedTracks; i++){
+            recURI += topTracks[i]
+            if ( i + 1 !== numSeedTracks ) {
+                recURI += ","
+            }
+        }
+
+        const response = await axios.get(recURI, {headers})
+        console.log(response.data)
+
+
+        // Set Danceability Range
+
+
+        // Set Energy Range
+
+
+        // Set Tempo Range
+
+
+        // Set Valence Range
+
 
     }
+
 
     
     useEffect( () => {
         refresh()
     },[])
+
+    useEffect ( () => {
+        if (topTrackFeatures.length === NUM_SONGS_RETRIEVED_FROM_SAVED) {
+            let danceability = []
+            let energy = []
+            let tempo = []
+            let valence = []
+            topTrackFeatures.forEach( track => {
+                danceability.push(track.danceability)
+                energy.push(track.energy)
+                tempo.push(track.tempo)
+                valence.push(track.valence)
+            })
+
+            const sonicTaste = {
+                danceability : {
+                    avg: statistics.mean(danceability), 
+                    low: statistics.quantile(danceability,0.25),
+                    high: statistics.quantile(danceability,0.75),
+                },
+                energy : {
+                    avg: statistics.mean(energy), 
+                    low: statistics.quantile(energy,0.25),
+                    high: statistics.quantile(energy,0.75),
+                }, 
+                tempo : {
+                    avg: statistics.mean(tempo), 
+                    low: statistics.quantile(tempo,0.25),
+                    high: statistics.quantile(tempo,0.75),
+                }, 
+                valence : {
+                    avg: statistics.mean(valence), 
+                    low: statistics.quantile(valence,0.25),
+                    high: statistics.quantile(valence,0.75),
+                }, 
+            }
+            localStorage.setItem("sonicTaste", JSON.stringify(sonicTaste))
+        }
+
+    }, [topTrackFeatures])
 
 
     // useEffect( () => {
@@ -232,7 +410,7 @@ function LoggedIn( props ) {
 
     return(
         <div className="Yak">
-            <button onClick={parsePlaylists}>
+            <button onClick={generateRecommendations}>
                 LoggedIn        
             </button>
            
