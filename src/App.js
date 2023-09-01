@@ -17,7 +17,10 @@ function App() {
     const refresh = searchParams.get('refresh_token');
     
     if(access){
-      setAccessToken(access)
+      if(accessToken === ''){
+        console.log("setting access appjs ", access)
+        setAccessToken(access)
+      }
     }
 
     if (refresh){
@@ -31,7 +34,7 @@ function App() {
     return (
       <div className="App">
           <a href="http://localhost:8888/login">
-            Logins
+            Login
           </a>
       </div>
     );

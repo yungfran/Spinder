@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import * as statistics from 'simple-statistics';
+import RecommendationDeck from "./RecommendationDeck";
 
 /* Props store access and refresh token*/
 function LoggedIn( props ) {
@@ -357,30 +358,51 @@ function LoggedIn( props ) {
 
         const response = await axios.get(recURI, {headers});
         const tracks = response.data.tracks
-        const images = tracks.map(track => track.album.images[1].url)
+        //const images = tracks.map(track => track.album.images[1].url)
+         const images = tracks.map(track => ({
+            imageUrl: track.album.images[1].url,
+            uri: track.uri
+        }));
+        console.log(images)
         setRecImagesUrls(images)
         setRecommendations(tracks)
     }
 
+    async function getPlayer() {
+        const playerURI = "https://api.spotify.com/v1/me/player/devices"
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+
+        const repsonse = await axios.get(playerURI,{headers});
+
+        console.log(repsonse.data)
+    }
+
     
+    // useEffect( () => {
+    //     refresh()
+    // },[])
+
     useEffect( () => {
-        refresh()
     },[])
 
     // Grab image blobs (binary large object) from the list of urls (recImageUrls)
     useEffect( () => {
         const fetchImages = async () => {
             if(recImagesUrls.length > 0){
-                console.log(recImagesUrls)
-                const imagePromises = recImagesUrls.map(async (imageUrl) => {
-                const response = await fetch(imageUrl);
-                const blob = await response.blob();
-                return URL.createObjectURL(blob);
-                });
+                const imagePromises = recImagesUrls.map(async (image) => {
+                    const response = await fetch(image.imageUrl);
+                    const blob = await response.blob();
+                    const blobWithUri = {
+                        blob: URL.createObjectURL(blob),
+                        uri: image.uri
+                    }
+                    return blobWithUri;
+                    });
         
                 const fetchedImages = await Promise.all(imagePromises);
                 setRecImages(fetchedImages);
-                console.log(recImages)
             }   
           };
       
@@ -437,21 +459,12 @@ function LoggedIn( props ) {
             <button onClick={generateRecommendations}>
                 Get Recs        
             </button>
-            {/* <ul>
-                {recommendations.map(rec => (
-                    <li key ={rec.id}>
-                        Song: {rec.name}   ,
-                        Artist: {rec.artists[0].name}   , 
-                        Playurl: {rec.external_urls.spotify}
 
-                    </li>
-                ))}
-            </ul> */}
-      {/* <div>
-        {recImages.map((imageSrc, index) => (
-          <img key={index} src={imageSrc} alt={`Image ${index}`} />
-        ))}
-      </div> */}
+            <RecommendationDeck recs={recImages} accessToken={accessToken} />
+            {accessToken}
+            <button onClick={getPlayer}>
+                Get Player
+            </button>
            
         </div>
     )
