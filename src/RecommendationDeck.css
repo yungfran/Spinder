@@ -1,0 +1,9 @@
+.track-image-wrapper {
+    display:flex;
+    justify-content: center;
+    background-color: #264653;
+}
+
+.track-image {
+    border-radius: 25px;
+}

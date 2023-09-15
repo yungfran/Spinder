@@ -1,5 +1,6 @@
 import {useState, useEffect} from 'react';
 import axios from "axios";
+import "./RecommendationDeck.css"
 
 function RecommendationDeck (props) {
 
@@ -36,32 +37,20 @@ function RecommendationDeck (props) {
             Authorization: 'Bearer ' + props.accessToken
         };
 
-
         const data = {
             uris: [recs[currRec].uri]
         }
         const playURL = "https://api.spotify.com/v1/me/player/play"
-        const response = await axios.put(playURL,data,{headers}).catch(error => console.log(error));
-        console.log(response);
 
+        // Play the song
+       // const response = await axios.put(playURL,data,{headers}).catch(error => console.log(error));
+        // console.log(response);
     }
 
+    // Updates our currRec to +1 or 0
     async function nextSong () {
-        if (playerId === null) {
-            await getPlayer()
-        } 
-        const headers = {
-            Authorization: 'Bearer ' + props.accessToken
-        };
         const nextRec = getNextRec()
-        console.log(nextRec)
-        const data = {
-            uris: [recs[nextRec].uri]
-        }
         setCurrRec(nextRec)
-        const playURL = "https://api.spotify.com/v1/me/player/play"
-        const response = await axios.put(playURL,data,{headers}).catch(error => console.log(error));
-        console.log(response);
     }
 
     // Get the index of our next recommendation. (we have a finite number of recommendations)
@@ -69,42 +58,44 @@ function RecommendationDeck (props) {
         if (currRec + 1 === recs.length){
             return 0;
         }
-
         return currRec + 1
-
     }
 
+    // Play the next song whever currRec is updated
+    useEffect ( () => {
+        if(props.recs.length > 0){
+            play()
+        }
+    },[currRec])
 
 
+
+    // Set recommendations intially
     useEffect( () => {
         if(props.recs.length > 0){
+            console.log(props.recs)
             setRecs(props.recs)
         }
     })
 
     if (props.recs.length > 0){
         return(
-            <div>
-                {/* {props.recs.map((image, index) => (
-                <img key={index} src={image.blob} alt={`Image ${index}`} />
-                ))} */}
-                <img key={0} src={props.recs[currRec].blob}/>
-            {/* <img key={0} src={props.recImages[0]} /> */}
+            <div className="rec-deck-wrapper">
+                <div className='track-image-wrapper'>
+                <img className="track-image" key={0} src={props.recs[currRec].blob}/>
+                </div>
 
             <button onClick ={nextSong}>
                 Next
             </button>
 
-            <button onClick = {play}>
-                Play
-            </button>
           </div>
         )
     }
 
     return (
         <div>
-            Images not Set
+            Loading images
         </div>
     )
 

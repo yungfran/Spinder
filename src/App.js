@@ -32,15 +32,24 @@ function App() {
 
   if(!accessToken){
     return (
-      <div className="App">
-          <a href="http://localhost:8888/login">
-            Login
-          </a>
+      <div className="top-bar-wrapper">
+            <div className="intro-text-wrapper"> 
+              Generate recommendations based on different songs, artists, and musical tastes
+            </div>
+          
+          <div className = "login-wrapper">
+            <a href="http://localhost:8888/login">
+              Login
+            </a>
+          </div>
       </div>
     );
   } else {
     return (
-      <LoggedIn access={accessToken} refresh = {refreshToken}/>
+      <div>
+        <div className="top-bar-wrapper"></div>
+        <LoggedIn access={accessToken} refresh = {refreshToken}/>
+      </div>
     )
   }
 

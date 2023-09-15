@@ -2,6 +2,10 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import * as statistics from 'simple-statistics';
 import RecommendationDeck from "./RecommendationDeck";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
+import CustomizeRecs from './CustomizeRecs';
+import "./LoggedIn.css"
+import Select from "react-select";
 
 /* Props store access and refresh token*/
 function LoggedIn( props ) {
@@ -9,7 +13,8 @@ function LoggedIn( props ) {
     const [accessToken,setAccess] = useState(props.access)
     const [refreshToken,setRefresh] = useState(props.refresh)
     const [userSongs, setUserSongs] = useState(new Set()); /* Stores the songs the user has saved to playlist */
-    const [userArtists,setUserArtists] = useState(new Map()); /* Used for genre counts */
+    const [userArtists,setUserArtists] = useState(new Map()); /* All artists inside the users saved songs ArtistName: ArtistID*/
+    const [artistList, setArtistList] = useState([]) /* List of all artists saved from user's songs in array form*/
     const [genreCounts, setGenreCounts] = useState(new Map()); /* Counts the genres the user listens to */
 
     const [topTrackFeatures, setTopTrackFeatures] = useState([]);
@@ -231,20 +236,66 @@ function LoggedIn( props ) {
     //    //const songPromises = Array.from(userSongs).map(songId => getSong(songId))
     // }
 
-    // async function getSavedSongs() {
-    //     const headers = {
-    //         Authorization: 'Bearer ' + accessToken
-    //     };
-    //     const savedSongsURI = "https://api.spotify.com/v1/me/tracks"
-    //     let response = await axios.get(savedSongsURI,{headers})
-    //     console.log(response)
-    //     let nextSongsURI = response.data.next;
-    //     while (nextSongsURI !== null) {
-    //         response = await axios.get(nextSongsURI,{headers});
-    //         console.log(response)
-    //         nextSongsURI = response.data.next;
-    //     }
-    // }
+    async function storeArtists() {
+
+       console.log("here!")
+       const artistsFromStorage = localStorage.getItem('userArtists');
+       console.log(artistsFromStorage)
+       if (artistsFromStorage !== null || artistsFromStorage !== undefined) {
+            const artistsArray = JSON.parse(artistsFromStorage);
+            // Construct a new Map from the parsed array of entries
+            const artistsMap = new Map(artistsArray);
+            setUserArtists(artistsMap);
+        } else {
+            await getSavedSongs();
+            const userArtistMapStorage = JSON.stringify(Array.from(userArtists.entries()));
+            localStorage.setItem('userArtists', userArtistMapStorage);
+        }
+    }
+
+    /* Takes in a list tracks and adds each one to userArtists*/
+    async function saveArtists (tracks){
+        console.log(tracks)
+        setUserArtists(prevUserArtist => {
+            const newArtists = new Map(prevUserArtist);
+            tracks.forEach(trackData => {
+            if (trackData.track !== null && trackData.track !== undefined) {
+                if (trackData.track.artists !== null && trackData.track.artists !== undefined) {
+                    if(trackData.track.artists[0] !== null ){
+                        const artistId = trackData.track.artists[0].id;
+                        const artist = trackData.track.artists[0].name;
+                        if(artistId !== null){
+                            if (!newArtists.has(artist)) {
+                                newArtists.set(artist, artistId);
+                            } 
+                        }
+                        
+                 }
+                }
+            }
+        }); 
+        setUserArtists(newArtists)
+        return newArtists
+     })
+    }
+
+    /* Retrieves all songs from saved songs and stores the artists along with their ID in userArtists*/
+    /* Todo Fix rate limit error*/
+    async function getSavedSongs() {
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        const savedSongsURI = "https://api.spotify.com/v1/me/tracks?limit=50"
+        let response = await axios.get(savedSongsURI,{headers})
+        saveArtists(response.data.items)
+        let numCalls = 1
+        let nextSongsURI = response.data.next;
+        while (nextSongsURI !== null && numCalls < 33) {
+            response = await axios.get(nextSongsURI,{headers});
+            saveArtists(response.data.items)
+            nextSongsURI = response.data.next;
+        }
+    }
 
     // /* Given a song's spotify URI, return the */
     // async function getSong (songURI) {
@@ -285,6 +336,7 @@ function LoggedIn( props ) {
         const topSongURI = "https://api.spotify.com/v1/me/top/tracks?time_range=" + term;
         const response = await axios.get(topSongURI, { headers });
         const tracks = response.data.items;
+        console.log(tracks)
 
         // Save the 5 randomtracks for recommendation seed
         const topTrackIds = tracks.map(track => track.id).sort(() => Math.random() - 0.5).slice(0,5);
@@ -327,6 +379,7 @@ function LoggedIn( props ) {
         const topArtists = JSON.parse(localStorage.getItem("topArtists"))
         const topTracks = JSON.parse(localStorage.getItem("topTracks"))
         const calculatedTastes = JSON.parse(localStorage.getItem("sonicTaste"));
+        setCurrentSonicTaste(calculatedTastes)
         const randArtist =  Math.floor(Math.random() * 5); 
         const randTrack =  Math.floor(Math.random() * 5); 
         
@@ -361,9 +414,11 @@ function LoggedIn( props ) {
         //const images = tracks.map(track => track.album.images[1].url)
          const images = tracks.map(track => ({
             imageUrl: track.album.images[1].url,
-            uri: track.uri
+            uri: track.uri,
+            name: track.name,
+            artist: track.artists[0].name
+
         }));
-        console.log(images)
         setRecImagesUrls(images)
         setRecommendations(tracks)
     }
@@ -379,15 +434,30 @@ function LoggedIn( props ) {
         console.log(repsonse.data)
     }
 
-    
-    // useEffect( () => {
-    //     refresh()
-    // },[])
-
+    // Updates artist dropdown with artists from spotify API
     useEffect( () => {
+        console.log(userArtists)
+        setArtistList(Array.from(userArtists.keys()));
+    },[userArtists])
+
+    
+    useEffect( () => {
+        refresh()
+        if(accessToken !== null) {
+            generateRecommendations()
+            storeArtists()
+        }
     },[])
 
+    useEffect( () => {
+        if(accessToken !== null) {
+            generateRecommendations()
+            storeArtists()
+        }
+    },[accessToken])
+
     // Grab image blobs (binary large object) from the list of urls (recImageUrls)
+    // Also populates an object with artist and track name
     useEffect( () => {
         const fetchImages = async () => {
             if(recImagesUrls.length > 0){
@@ -396,7 +466,9 @@ function LoggedIn( props ) {
                     const blob = await response.blob();
                     const blobWithUri = {
                         blob: URL.createObjectURL(blob),
-                        uri: image.uri
+                        uri: image.uri,
+                        name: image.name,
+                        artist: image.artist
                     }
                     return blobWithUri;
                     });
@@ -454,18 +526,105 @@ function LoggedIn( props ) {
     // useEffect( () => {
     // },[userSongs])
 
+    const onSubmit = (data) => {
+        console.log(userArtists.get(data.artists[0].name.value));
+        console.log(artistList)
+      };
+
+    const { register, handleSubmit, formState: { errors }, control } = useForm();
+    const { fields, append, remove } = useFieldArray({
+    control,
+    name: "artists",
+    });
+
+    // const artistOptions = ["Artist 1", "Artist 2", "Artist 3", "Artist 4"];
+
     return(
         <div className="Yak">
-            <button onClick={generateRecommendations}>
-                Get Recs        
-            </button>
+            <div>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <label>Artists:</label>
 
-            <RecommendationDeck recs={recImages} accessToken={accessToken} />
-            {accessToken}
-            <button onClick={getPlayer}>
-                Get Player
-            </button>
-           
+                <ul>
+                {fields.map((field, index) => (
+                    <li key={field.id}>
+                    <Controller
+                        name={`artists[${index}].name`}
+                        control={control}
+                        defaultValue={field.name}
+                        render={({ field }) => (
+                        <div>
+                            <Select
+                            {...field}
+                            options={artistList.map((option) => ({
+                                value: option,
+                                label: option,
+                            }))}
+                            isSearchable={true} // Enable search functionality
+                            placeholder="Select an artist..."
+                            />
+                            <button
+                            type="button"
+                            className="remove-button"
+                            onClick={() => remove(index)}
+                            >
+                            X
+                            </button>
+                        </div>
+                        )}
+                    />
+                    </li>
+                ))}
+                </ul>
+
+                {fields.length === 0 && ( // Conditional rendering for initial field
+                <Controller
+                    name={`artists[0].name`}
+                    control={control}
+                    defaultValue=""
+                    render={({ field }) => (
+                    <div>
+                        <select {...field}>
+                        {artistList.map((option) => (
+                            <option key={option} value={option}>
+                            {option}
+                            </option>
+                        ))}
+                        </select>
+                    </div>
+                    )}
+                />
+                )} 
+                <button type="button" onClick={() => append({ name: "" })}>
+                Add Artist
+                </button>
+                
+                <label>Valence</label>
+                <input className="taste-input" defaultValue="0.5" {...register("Valence")} />
+                <input className="taste-input" placeholder="Default Valence Range: .3" {...register("Valence-Range")} />
+
+                <label>Danceability</label>
+                <input className="taste-input" defaultValue="0.5" {...register("Danceability")} />
+                <input className="taste-input" placeholder="Default Danceability Range: .3" {...register("Danceability-Range")} />
+
+                
+                <label>Energy</label>
+                <input className="taste-input" defaultValue="0.5" {...register("Energy")} />
+                <input className="taste-input" placeholder="Default Energy Range: .3"  {...register("Energy-Range")} />
+                
+
+
+                <label>Tempo</label>
+                <input className="taste-input" defaultValue="0.5" {...register("Tempo")} />
+                <input className="taste-input" placeholder="Default Tempo Range: .3" {...register("Tempo-Range")} />
+
+
+                <button type="submit">Generate</button>
+            </form>
+            </div>
+        );
+            
+            {/* <RecommendationDeck recs={recImages} accessToken={accessToken} /> */}
         </div>
     )
 
