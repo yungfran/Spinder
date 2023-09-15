@@ -12,9 +12,12 @@ function LoggedIn( props ) {
 
     const [accessToken,setAccess] = useState(props.access)
     const [refreshToken,setRefresh] = useState(props.refresh)
-    const [userSongs, setUserSongs] = useState(new Set()); /* Stores the songs the user has saved to playlist */
+    const [userSongs, setUserSongs] = useState(new Set()); /* Stores the songs the user has saved to savedSongs */
     const [userArtists,setUserArtists] = useState(new Map()); /* All artists inside the users saved songs ArtistName: ArtistID*/
+
     const [artistList, setArtistList] = useState([]) /* List of all artists saved from user's songs in array form*/
+    const [trackList, setTrackList] = useState([]) /* List of all artists saved from user's songs in array form*/
+
     const [genreCounts, setGenreCounts] = useState(new Map()); /* Counts the genres the user listens to */
 
     const [topTrackFeatures, setTopTrackFeatures] = useState([]);
@@ -236,26 +239,55 @@ function LoggedIn( props ) {
     //    //const songPromises = Array.from(userSongs).map(songId => getSong(songId))
     // }
 
-    async function storeArtists() {
-
-       console.log("here!")
+    /* Checks local storage to see if */
+    async function storeArtistsAndTracks() {
        const artistsFromStorage = localStorage.getItem('userArtists');
-       console.log(artistsFromStorage)
-       if (artistsFromStorage !== null || artistsFromStorage !== undefined) {
+       const tracksFromStorage = localStorage.getItem('userTracks')
+       console.log((artistsFromStorage !== null || artistsFromStorage !== undefined))
+       console.log((tracksFromStorage !== null || tracksFromStorage !== undefined))
+       if ( (artistsFromStorage !== null) && (tracksFromStorage !== null) ){
             const artistsArray = JSON.parse(artistsFromStorage);
+            const tracksArray = JSON.parse(tracksFromStorage);
             // Construct a new Map from the parsed array of entries
             const artistsMap = new Map(artistsArray);
+            const trackMap = new Map(tracksArray);
             setUserArtists(artistsMap);
+            setUserSongs(trackMap)
         } else {
+            console.log("getting songs")
             await getSavedSongs();
             const userArtistMapStorage = JSON.stringify(Array.from(userArtists.entries()));
+            const userTracksMapStorage = JSON.stringify(Array.from(userSongs.entries()));
             localStorage.setItem('userArtists', userArtistMapStorage);
+            localStorage.setItem('userTracks', userTracksMapStorage);
         }
+    }
+
+    async function saveTracks(tracks){
+        setUserSongs(prevUserTracks => {
+            const newTracks = new Map(prevUserTracks);
+            tracks.forEach(trackData => {
+            if (trackData.track !== null && trackData.track !== undefined) {
+                const trackName = trackData.track.name
+                const trackId = trackData.track.id
+                if (trackData.track.artists !== null && trackData.track.artists !== undefined) {
+                    if(trackData.track.artists[0] !== null ){
+                        const artist = trackData.track.artists[0].name;
+                        if(!newTracks.has(trackName)){
+                            newTracks.set(trackName + " - " + artist,trackId)
+                        }
+                 }
+                }
+            }
+        })
+   
+        setUserSongs(newTracks)
+        return newTracks
+        });
     }
 
     /* Takes in a list tracks and adds each one to userArtists*/
     async function saveArtists (tracks){
-        console.log(tracks)
         setUserArtists(prevUserArtist => {
             const newArtists = new Map(prevUserArtist);
             tracks.forEach(trackData => {
@@ -288,11 +320,13 @@ function LoggedIn( props ) {
         const savedSongsURI = "https://api.spotify.com/v1/me/tracks?limit=50"
         let response = await axios.get(savedSongsURI,{headers})
         saveArtists(response.data.items)
+        saveTracks(response.data.items)
         let numCalls = 1
         let nextSongsURI = response.data.next;
         while (nextSongsURI !== null && numCalls < 33) {
-            response = await axios.get(nextSongsURI,{headers});
+            response = await axios.get(nextSongsURI,{headers}).catch( error => console.log(error));
             saveArtists(response.data.items)
+            saveTracks(response.data.items)
             nextSongsURI = response.data.next;
         }
     }
@@ -370,7 +404,7 @@ function LoggedIn( props ) {
     }
 
     /* Can only provide 5 seed values
-        Randomly Generate how many tracks and artists to provide*/
+        Randomly Generate how many tracks and artists to provide */
     async function getRecommendations () {
         const headers = {
             Authorization: 'Bearer ' + accessToken
@@ -423,6 +457,7 @@ function LoggedIn( props ) {
         setRecommendations(tracks)
     }
 
+    /* Gets the ID of the active spotify player*/
     async function getPlayer() {
         const playerURI = "https://api.spotify.com/v1/me/player/devices"
         const headers = {
@@ -430,34 +465,37 @@ function LoggedIn( props ) {
         };
 
         const repsonse = await axios.get(playerURI,{headers});
-
-        console.log(repsonse.data)
     }
 
-    // Updates artist dropdown with artists from spotify API
+    /* Updates artist dropdown with artists from spotify API */
     useEffect( () => {
-        console.log(userArtists)
         setArtistList(Array.from(userArtists.keys()));
     },[userArtists])
 
+    /* Updates track dropdown with artists from spotify API */
+    useEffect( () => {
+        setTrackList(Array.from(userSongs.keys()));
+    },[userSongs])
+
     
+    /* Initial Data Parsing and token generation */
     useEffect( () => {
         refresh()
         if(accessToken !== null) {
             generateRecommendations()
-            storeArtists()
+            storeArtistsAndTracks()
         }
     },[])
 
     useEffect( () => {
         if(accessToken !== null) {
             generateRecommendations()
-            storeArtists()
+            storeArtistsAndTracks()
         }
     },[accessToken])
 
-    // Grab image blobs (binary large object) from the list of urls (recImageUrls)
-    // Also populates an object with artist and track name
+    /* Grab image blobs (binary large object) from the list of urls (recImageUrls)
+        Also populates an object with artist and track name */
     useEffect( () => {
         const fetchImages = async () => {
             if(recImagesUrls.length > 0){
@@ -481,7 +519,7 @@ function LoggedIn( props ) {
           fetchImages();
     },[recImagesUrls])
 
-    // Set the user's sonic preferences
+    /* Update the user's musical averages */ 
     useEffect ( () => {
         if (topTrackFeatures.length === NUM_SONGS_RETRIEVED_FROM_SAVED) {
             let danceability = []
@@ -532,72 +570,91 @@ function LoggedIn( props ) {
       };
 
     const { register, handleSubmit, formState: { errors }, control } = useForm();
-    const { fields, append, remove } = useFieldArray({
-    control,
-    name: "artists",
+    const { fields: artistFields, append: appendArtist, remove: removeArtist } = useFieldArray({
+        control,
+        name: "artists",
     });
 
-    // const artistOptions = ["Artist 1", "Artist 2", "Artist 3", "Artist 4"];
+    const { fields: trackFields, append: appendTrack, remove: removeTrack } = useFieldArray({
+        control,
+        name: "tracks",
+    });
 
     return(
         <div className="Yak">
             <div>
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <label>Artists:</label>
-
-                <ul>
-                {fields.map((field, index) => (
-                    <li key={field.id}>
-                    <Controller
-                        name={`artists[${index}].name`}
-                        control={control}
-                        defaultValue={field.name}
-                        render={({ field }) => (
+  <form onSubmit={handleSubmit(onSubmit)}>
+    <label>Artists:</label>
+    <ul>
+        {artistFields.map((field, index) => (
+            <li key={field.id}>
+                <Controller
+                    name={`artists[${index}].name`}
+                    control={control}
+                    defaultValue={field.name}
+                    render={({ field }) => (
                         <div>
                             <Select
-                            {...field}
-                            options={artistList.map((option) => ({
-                                value: option,
-                                label: option,
-                            }))}
-                            isSearchable={true} // Enable search functionality
-                            placeholder="Select an artist..."
+                                {...field}
+                                options={artistList.map((option) => ({
+                                    value: option,
+                                    label: option,
+                                }))}
+                                isSearchable={true}
+                                placeholder="Select an artist..."
                             />
                             <button
-                            type="button"
-                            className="remove-button"
-                            onClick={() => remove(index)}
+                                type="button"
+                                className="remove-button"
+                                onClick={() => removeArtist(index)}
                             >
-                            X
+                                X
                             </button>
                         </div>
-                        )}
-                    />
-                    </li>
-                ))}
-                </ul>
-
-                {fields.length === 0 && ( // Conditional rendering for initial field
-                <Controller
-                    name={`artists[0].name`}
-                    control={control}
-                    defaultValue=""
-                    render={({ field }) => (
-                    <div>
-                        <select {...field}>
-                        {artistList.map((option) => (
-                            <option key={option} value={option}>
-                            {option}
-                            </option>
-                        ))}
-                        </select>
-                    </div>
                     )}
                 />
-                )} 
-                <button type="button" onClick={() => append({ name: "" })}>
-                Add Artist
-                </button>
+            </li>
+        ))}
+    </ul>
+    <button type="button" onClick={() => appendArtist({ name: "" })}>
+        Add Artist
+    </button>
+
+    <label>Tracks:</label>
+    <ul>
+        {trackFields.map((field, index) => (
+            <li key={field.id}>
+                <Controller
+                    name={`tracks[${index}].name`}
+                    control={control}
+                    defaultValue={field.name}
+                    render={({ field }) => (
+                        <div>
+                            <Select
+                                {...field}
+                                options={trackList.map((option) => ({
+                                    value: option,
+                                    label: option,
+                                }))}
+                                isSearchable={true}
+                                placeholder="Select a track..."
+                            />
+                            <button
+                                type="button"
+                                className="remove-button"
+                                onClick={() => removeTrack(index)}
+                            >
+                                X
+                            </button>
+                        </div>
+                    )}
+                />
+            </li>
+        ))}
+    </ul>
+    <button type="button" onClick={() => appendTrack({ name: "" })}>
+        Add Track
+    </button>
                 
                 <label>Valence</label>
                 <input className="taste-input" defaultValue="0.5" {...register("Valence")} />
