@@ -4,14 +4,22 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(0%, -50%); 
+    transform: translate(0%, -30%); 
     user-select: none; /* -- Prevent image highlighting -- */
 }
 
 .track-image {
     /* transform: scale(0.9);  */
     width: 40vmin;
-    height: 56vmin;
+    height: 57vmin;
     object-fit: cover;
     object-position: 100% center;
   }
+
+.rec-deck-wrapper {
+    height: 100vh;
+    width: 100vw;
+    background-color: black;
+    margin: 0rem;
+    overflow:hidden
+}

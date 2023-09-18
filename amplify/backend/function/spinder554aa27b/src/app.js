@@ -37,7 +37,11 @@ app.use(function(req, res, next) {
   next()
 });
 
-var stateKey = 'spotify_auth_state';
+/**
+ * Generates a random string containing numbers and letters
+ * @param  {number} length The length of the string
+ * @return {string} The generated string
+ */
 var generateRandomString = function(length) {
   var text = '';
   var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -48,23 +52,33 @@ var generateRandomString = function(length) {
   return text;
 };
 
-app.get('/login', function(req, res) {
-  var state = generateRandomString(16);
-  res.cookie(stateKey, state);
-  console.log("Starting backend login");
-  // your application requests authorization
-  var scope = 'user-read-private user-read-email user-library-read user-top-read user-modify-playback-state user-read-playback-state playlist-modify-private playlist-modify-public';
-  res.redirect('https://accounts.spotify.com/authorize?' +
-    querystring.stringify({
-      response_type: 'code',
-      client_id: CLIENT_ID,
-      scope: scope,
-      redirect_uri: REDIRECT_URI,
-      state: state
-    }));
- });
 
- app.get('/callback', function(req, res) {
+/**
+*  Call Login
+*/
+app.get('/login', function(req, res) {
+var state = generateRandomString(16);
+res.cookie(stateKey, state);
+console.log("Starting backend login");
+// your application requests authorization
+var scope = 'user-read-private user-read-email user-library-read user-top-read user-modify-playback-state user-read-playback-state playlist-modify-private playlist-modify-public';
+res.redirect('https://accounts.spotify.com/authorize?' +
+ querystring.stringify({
+   response_type: 'code',
+   client_id: CLIENT_ID,
+   scope: scope,
+   redirect_uri: REDIRECT_URI,
+   state: state
+ }));
+});
+
+
+
+
+/**
+* Callback
+*/
+app.get('/callback', function(req, res) {
   // your application requests refresh and access tokens
   // after checking the state parameter
   
@@ -126,6 +140,7 @@ app.get('/login', function(req, res) {
   }
 });
 
+
 app.get('/refresh_token', function(req, res) {
 
   // requesting access token from refresh token
@@ -154,10 +169,9 @@ app.get('/refresh_token', function(req, res) {
   });
 });
 
+console.log('Listening on 8888');
+app.listen(8888);
 
-app.listen(8888, function() {
-    console.log("App started")
-});
 
 // Export the app object. When executing the application local this does nothing. However,
 // to port it to AWS Lambda we will create a wrapper around that will load the app from

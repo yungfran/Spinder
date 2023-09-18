@@ -23,6 +23,22 @@
           "resourceName": "spinder554aa27b"
         }
       ]
+    },
+    "AMPLIFY_function_spinder554aa27b_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "spinder554aa27b"
+        }
+      ]
+    },
+    "AMPLIFY_function_spinder554aa27b_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "spinder554aa27b"
+        }
+      ]
     }
   }
 }

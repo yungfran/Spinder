@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import axios from "axios";
 import "./RecommendationDeck.css"
 
@@ -10,6 +10,14 @@ function RecommendationDeck (props) {
     const [currRec, setCurrRec] = useState(0)
 
     const [playerId, setPlayerId] = useState(null)
+
+    const [startDragPos, setStartDragPos] = useState(0)
+
+    const [currPercentage, setCurrPercentage] = useState(0)
+
+    const [prevPercentage, setPrevPercentage] = useState(0)
+
+    const trackRef = useRef(null)
 
 
     async function nextSong () {
@@ -74,6 +82,49 @@ function RecommendationDeck (props) {
         }
         return currRec + 1
     }
+    /* Start Track Movement */
+    function startDrag (event) {
+        const startXPos = event.clientX;
+        setStartDragPos(startXPos)
+    }
+
+
+    function draggingTrack (event){
+        if(startDragPos === "0" || startDragPos === 0) return;
+
+        const track = trackRef.current;
+
+        const posChange = startDragPos - event.clientX;
+        const maxChange = window.innerWidth / 2;
+
+        const percentage = (posChange / maxChange) * 100;
+        const nextPercentageUnconstrained = parseFloat(prevPercentage) + percentage
+        const nextPercentage = Math.max(Math.min(nextPercentageUnconstrained, 0), -100);
+
+        setCurrPercentage(nextPercentage)
+
+        track.animate(
+            [{ transform: `translate(${nextPercentage}%, -30%)` }],
+            { duration: 2000, fill: 'forwards' }
+          );
+
+        const images = track.getElementsByClassName('track-image');
+        for (const image of images) {
+        image.animate(
+            [{ objectPosition: `${100 + nextPercentage}% center` }],
+            { duration: 2000, fill: 'forwards' }
+        );
+        }
+
+    }
+
+    function endDrag (event) {
+        setStartDragPos(0)
+        setPrevPercentage(currPercentage)
+    }
+
+
+    /* End Track Movement */
 
     // Play the next song whever currRec is updated
     useEffect ( () => {
@@ -97,11 +148,11 @@ function RecommendationDeck (props) {
 
     if (props.recs.length > 0) {
         return (
-          <div className="rec-deck-wrapper">
-            <div className="tracks-wrapper">
+          <div className="rec-deck-wrapper" onMouseDown={startDrag} onMouseMove={draggingTrack} onMouseUp={endDrag}>
+            <div className="tracks-wrapper" ref={trackRef}>
             {props.recs.map((rec, index) => (
               <div key={index} className='track-image-wrapper' draggable={false}>
-                <img className="track-image" src={rec.blob} />
+                <img className="track-image" src={rec.blob} draggable={false}/>
               </div>
             ))}
             </div>

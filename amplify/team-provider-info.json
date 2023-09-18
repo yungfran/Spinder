@@ -15,7 +15,9 @@
       "function": {
         "spinder554aa27b": {
           "clientId": "9c438c86b0a34ae5bb873656d22d486c",
-          "clientSecret": "732d464cf07445148fdf29fda21bb801"
+          "clientSecret": "732d464cf07445148fdf29fda21bb801",
+          "deploymentBucketName": "amplify-amplifyfb72531940b94-staging-80037-deployment",
+          "s3Key": "amplify-builds/spinder554aa27b-574a5364454a6b614a61-build.zip"
         }
       }
     }
