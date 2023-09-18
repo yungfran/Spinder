@@ -6,31 +6,35 @@ import { useForm, Controller, useFieldArray } from "react-hook-form";
 import CustomizeRecs from './CustomizeRecs';
 import "./LoggedIn.css"
 import Select from "react-select";
+import GenerateRecommendations from "./GenerateRecommendations";
 
 /* Props store access and refresh token*/
 function LoggedIn( props ) {
 
+    /* Access Tokens*/
     const [accessToken,setAccess] = useState(props.access)
     const [refreshToken,setRefresh] = useState(props.refresh)
+
+    const [userId, setUserID] = useState([])
+
     const [userSongs, setUserSongs] = useState(new Set()); /* Stores the songs the user has saved to savedSongs */
     const [userArtists,setUserArtists] = useState(new Map()); /* All artists inside the users saved songs ArtistName: ArtistID*/
 
     const [artistList, setArtistList] = useState([]) /* List of all artists saved from user's songs in array form*/
     const [trackList, setTrackList] = useState([]) /* List of all artists saved from user's songs in array form*/
+    const [currentSonicTaste, setCurrentSonicTaste] = useState(null);
 
-    const [genreCounts, setGenreCounts] = useState(new Map()); /* Counts the genres the user listens to */
-
-    const [topTrackFeatures, setTopTrackFeatures] = useState([]);
-
-    const [currentSonicTaste, setCurrentSonicTaste] = useState([]);
-
-    const [recommendations, setRecommendations] = useState([]);
 
     const [recImagesUrls, setRecImagesUrls] = useState([]);
+    const [topTrackFeatures, setTopTrackFeatures] = useState([]);
 
+    const [genreCounts, setGenreCounts] = useState(new Map()); /* Counts the genres the user listens to */
+    const [recommendations, setRecommendations] = useState([]);
     const [recImages, setRecImages] = useState([]);
 
     const NUM_SONGS_RETRIEVED_FROM_SAVED = 20
+    const DEFAULT_RANGE = 0.15
+
 
 
     /* Begin Access functions */
@@ -53,6 +57,7 @@ function LoggedIn( props ) {
         const response = await axios.get("http://localhost:8888/refresh_token", {params:queryParams}).catch(error => console.error(error));
         if (response) {
             console.log("setting token")
+            console.log(response.data.access_token)
             setAccess(response.data.access_token)
         }
     }
@@ -243,8 +248,6 @@ function LoggedIn( props ) {
     async function storeArtistsAndTracks() {
        const artistsFromStorage = localStorage.getItem('userArtists');
        const tracksFromStorage = localStorage.getItem('userTracks')
-       console.log((artistsFromStorage !== null || artistsFromStorage !== undefined))
-       console.log((tracksFromStorage !== null || tracksFromStorage !== undefined))
        if ( (artistsFromStorage !== null) && (tracksFromStorage !== null) ){
             const artistsArray = JSON.parse(artistsFromStorage);
             const tracksArray = JSON.parse(tracksFromStorage);
@@ -343,7 +346,7 @@ function LoggedIn( props ) {
 
     async function generateRecommendations() {
        await analyzeSonicTastes();
-       await getRecommendations();
+      // await getRecommendations();
     }
 
     async function analyzeSonicTastes () {
@@ -447,7 +450,7 @@ function LoggedIn( props ) {
         const tracks = response.data.tracks
         //const images = tracks.map(track => track.album.images[1].url)
          const images = tracks.map(track => ({
-            imageUrl: track.album.images[1].url,
+            imageUrl: track.album.images[0].url,
             uri: track.uri,
             name: track.name,
             artist: track.artists[0].name
@@ -455,6 +458,16 @@ function LoggedIn( props ) {
         }));
         setRecImagesUrls(images)
         setRecommendations(tracks)
+    }
+
+    /* Gets the user's profile, used for getting userID*/
+    async function getUserProfile() {
+        const userURI = "https://api.spotify.com/v1/me"
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        const response = await axios.get(userURI,{headers});
+        setUserID(response.data.display_name);
     }
 
     /* Gets the ID of the active spotify player*/
@@ -477,11 +490,14 @@ function LoggedIn( props ) {
         setTrackList(Array.from(userSongs.keys()));
     },[userSongs])
 
+
     
     /* Initial Data Parsing and token generation */
     useEffect( () => {
         refresh()
         if(accessToken !== null) {
+            console.log(accessToken)
+            getUserProfile()
             generateRecommendations()
             storeArtistsAndTracks()
         }
@@ -489,6 +505,7 @@ function LoggedIn( props ) {
 
     useEffect( () => {
         if(accessToken !== null) {
+            getUserProfile()
             generateRecommendations()
             storeArtistsAndTracks()
         }
@@ -560,14 +577,120 @@ function LoggedIn( props ) {
 
     }, [topTrackFeatures])
 
+    // Create playlist here
+    const onSubmit = async (data) => {
+        const currentDate = new Date();
+        const headers = {
+            Authorization: 'Bearer ' + accessToken
+        };
+        const playlistURI = "https://api.spotify.com/v1/users/"+ userId + "/playlists"
+        const body = {
+            name : "Playlist generated on " + currentDate.getMonth() + "/" + currentDate.getDate(),
+            description: "Generated from these attributes: ",
+            public: false
+        }
 
-    // useEffect( () => {
-    // },[userSongs])
+        // Need to find out what data to send to recommender 
+        const recURL = await getRecURL(data)
+        console.log(recURL)
 
-    const onSubmit = (data) => {
-        console.log(userArtists.get(data.artists[0].name.value));
-        console.log(artistList)
+        const recs = await axios.get(recURL, {headers}).catch( (error) => console.log(error))
+        const tracks = recs.data.tracks
+        //const images = tracks.map(track => track.album.images[1].url)
+
+        console.log(recs)
+         const images = tracks.map(track => ({
+            imageUrl: track.album.images[0].url,
+            uri: track.uri,
+            name: track.name,
+            artist: track.artists[0].name
+
+        }));
+        setRecImagesUrls(images)
+        setRecommendations(tracks)
+        // Create Playlist
+        // const createPlaylistResponse = await axios.post(playlistURI,body,{headers}).catch( (error) => console.log(error));
+  
       };
+
+    async function getRecURL(data) {
+        let recURL = "https://api.spotify.com/v1/recommendations?"
+        /* First field to add is prefixed by ?, all subsequent is prefixed by &. Use this variable to see if we need to add a & or not*/
+        let addedOneField = false 
+
+        if ( fieldExists(data.artists) ){
+            recURL += "seed_artists="+ userArtists.get(data.artists[0].name.value)
+        }
+
+        if ( fieldExists(data.tracks) ){
+            recURL += "&seed_tracks="+ userSongs.get(data.tracks[0].name.value)
+        }
+
+
+        if ( fieldExists(data.Danceability) ) { 
+            let danceabilityRange = DEFAULT_RANGE
+            if (fieldExists(data.DanceabilityRange)){
+                danceabilityRange = parseFloat(data.DanceabilityRange)
+            }
+            const max_danceability = parseFloat(data.Danceability) + danceabilityRange
+            const min_danceability = parseFloat(data.Danceability) - danceabilityRange
+            // console.log(parseFloat(data.Danceability) + danceabilityRange)
+
+            recURL += "&max_danceability="  +max_danceability
+            recURL += "&min_danceability=" + min_danceability
+            addedOneField = true
+        }
+
+        // From here on, everytime we try to add a field to the recommender, what
+
+        if ( fieldExists(data.Valence) ) { 
+            let valenceRange = DEFAULT_RANGE
+            if (fieldExists(data.ValenceRange)){
+                valenceRange = parseFloat(data.ValenceRange)
+            }
+            const max_valence= parseFloat(data.Valence) + valenceRange
+            const min_valence = parseFloat(data.Valence) - valenceRange
+
+            if(!addedOneField) {recURL += "&"}
+
+            recURL += "max_valence=" + max_valence
+            recURL += "&min_valence=" + min_valence
+        }
+
+        if ( fieldExists(data.Energy) ) { 
+            let energyRange = DEFAULT_RANGE
+            if (fieldExists(data.EnergyRange)){
+                energyRange = parseFloat(data.EnergyRange)
+            }
+            const max_energy = parseFloat(data.Energy) + energyRange
+            const min_energy = parseFloat(data.Energy) - energyRange
+
+            if(!addedOneField) {recURL += "&"}
+            recURL += "max_valence=" + max_energy
+            recURL += "&min_energy=" + min_energy
+        }
+
+        if ( fieldExists(data.Tempo) ) { 
+            let tempoRange = DEFAULT_RANGE
+            if (fieldExists(data.TempoRange)){
+                tempoRange = parseFloat(data.TempoRange)
+            }
+            const max_tempo = parseFloat(data.Tempo) + tempoRange
+            const min_tempo = parseFloat(data.Tempo) - tempoRange
+
+            if(!addedOneField) {recURL += "&"}
+            recURL += "max_valence=" + max_tempo
+            recURL += "&min_energy=" + min_tempo
+        }
+
+
+        return recURL
+
+    }
+
+    function fieldExists(field){
+        return field !== undefined && field.length > 0
+    }
 
     const { register, handleSubmit, formState: { errors }, control } = useForm();
     const { fields: artistFields, append: appendArtist, remove: removeArtist } = useFieldArray({
@@ -580,10 +703,17 @@ function LoggedIn( props ) {
         name: "tracks",
     });
 
+    if(recImages.length > 0){
+        return(
+         <RecommendationDeck recs={recImages} accessToken={accessToken} userId={userId} /> 
+        )
+    } else {
+
     return(
         <div className="Yak">
             <div>
   <form onSubmit={handleSubmit(onSubmit)}>
+  <button type="submit">Generate</button>
     <label>Artists:</label>
     <ul>
         {artistFields.map((field, index) => (
@@ -657,23 +787,53 @@ function LoggedIn( props ) {
     </button>
                 
                 <label>Valence</label>
-                <input className="taste-input" defaultValue="0.5" {...register("Valence")} />
-                <input className="taste-input" placeholder="Default Valence Range: .3" {...register("Valence-Range")} />
+                <input
+                    className="taste-input"
+                    placeholder={
+                        currentSonicTaste !== null
+                        ? "Average Valence: " + currentSonicTaste.valence.avg.toFixed(4)
+                        : "Default Placeholder Value"
+                    }
+                        {...register("Valence")} 
+                />
+                <input className="taste-input" placeholder="Default Valence Range: .3" {...register("ValenceRange")} />
 
                 <label>Danceability</label>
-                <input className="taste-input" defaultValue="0.5" {...register("Danceability")} />
-                <input className="taste-input" placeholder="Default Danceability Range: .3" {...register("Danceability-Range")} />
+                <input
+                    className="taste-input"
+                    placeholder={
+                        currentSonicTaste !== null
+                        ? "Average Danceability: " + currentSonicTaste.danceability.avg.toFixed(4)
+                        : "Default Placeholder Value"
+                    }
+                        {...register("Danceability")} 
+                />
+                <input className="taste-input" placeholder="Default Danceability Range: .3" {...register("DanceabilityRange")} />
 
                 
                 <label>Energy</label>
-                <input className="taste-input" defaultValue="0.5" {...register("Energy")} />
-                <input className="taste-input" placeholder="Default Energy Range: .3"  {...register("Energy-Range")} />
+                <input
+                    className="taste-input"
+                    placeholder={
+                        currentSonicTaste !== null
+                        ? "Average Energy: " + currentSonicTaste.energy.avg.toFixed(4)
+                        : "Default Placeholder Value"
+                    }
+                        {...register("Energy")} 
+                />
+                <input className="taste-input" placeholder="Default Energy Range: .3"  {...register("EnergyRange")} />
                 
-
-
                 <label>Tempo</label>
-                <input className="taste-input" defaultValue="0.5" {...register("Tempo")} />
-                <input className="taste-input" placeholder="Default Tempo Range: .3" {...register("Tempo-Range")} />
+                <input
+                    className="taste-input"
+                    placeholder={
+                        currentSonicTaste !== null
+                        ? "Average Tempo: " + currentSonicTaste.tempo.avg.toFixed(4)
+                        : "Default Placeholder Value"
+                    }
+                        {...register("Tempo")} 
+                />
+                <input className="taste-input" placeholder="Default Tempo Range: .3" {...register("TempoRange")} />
 
 
                 <button type="submit">Generate</button>
@@ -684,7 +844,7 @@ function LoggedIn( props ) {
             {/* <RecommendationDeck recs={recImages} accessToken={accessToken} /> */}
         </div>
     )
-
+                }
 
 }
 

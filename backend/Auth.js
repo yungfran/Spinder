@@ -42,7 +42,7 @@ app.get('/login', function(req, res) {
  res.cookie(stateKey, state);
  console.log("Starting backend login");
  // your application requests authorization
- var scope = 'user-read-private user-read-email user-library-read user-top-read user-modify-playback-state user-read-playback-state';
+ var scope = 'user-read-private user-read-email user-library-read user-top-read user-modify-playback-state user-read-playback-state playlist-modify-private playlist-modify-public';
  res.redirect('https://accounts.spotify.com/authorize?' +
    querystring.stringify({
      response_type: 'code',

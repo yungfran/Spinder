@@ -23,3 +23,11 @@
   align-items: center; /* Center vertically */
   height: 100vh; /* Optionally, make the parent container take up the full viewport height */
 }
+
+body{
+  height: 100vh;
+  width: 100vw;
+  background-color: black;
+  margin: 0rem;
+}
+

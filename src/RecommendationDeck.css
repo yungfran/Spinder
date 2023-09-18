@@ -1,9 +1,17 @@
-.track-image-wrapper {
-    display:flex;
-    justify-content: center;
-    background-color: #264653;
+.tracks-wrapper {
+    display: flex;
+    gap: 4vmin;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(0%, -50%); 
+    user-select: none; /* -- Prevent image highlighting -- */
 }
 
 .track-image {
-    border-radius: 25px;
-}
+    /* transform: scale(0.9);  */
+    width: 40vmin;
+    height: 56vmin;
+    object-fit: cover;
+    object-position: 100% center;
+  }

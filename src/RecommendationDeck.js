@@ -5,12 +5,12 @@ import "./RecommendationDeck.css"
 function RecommendationDeck (props) {
 
     // Show an album cover with a song playing
-    // Pause, 
     const [recs, setRecs] = useState(props.recs);
 
     const [currRec, setCurrRec] = useState(0)
 
     const [playerId, setPlayerId] = useState(null)
+
 
     async function nextSong () {
         setCurrRec(currRec + 1)
@@ -22,7 +22,6 @@ function RecommendationDeck (props) {
             Authorization: 'Bearer ' + props.accessToken
         };
 
- 
 
         const playerRepsonse = await axios.get(playerURI,{headers});
         const player = playerRepsonse.data.devices[0].id
@@ -53,6 +52,21 @@ function RecommendationDeck (props) {
         setCurrRec(nextRec)
     }
 
+    async function makePlaylist () {
+        const currentDate = new Date();
+        const headers = {
+            Authorization: 'Bearer ' + props.accessToken
+        };
+        const playlistURI = "https://api.spotify.com/v1/users/"+ props.userId + "/playlists"
+        const body = {
+            name : "Playlist generated on " + currentDate.getMonth() + "/" + currentDate.getDate(),
+            description: "Generated from these attributes: ",
+            public: false
+        }
+        const createPlaylistResponse = await axios.post(playlistURI,body,{headers}).catch( (error) => console.log(error));
+        console.log(createPlaylistResponse)
+    }
+
     // Get the index of our next recommendation. (we have a finite number of recommendations)
     function getNextRec () {
         if (currRec + 1 === recs.length){
@@ -64,7 +78,8 @@ function RecommendationDeck (props) {
     // Play the next song whever currRec is updated
     useEffect ( () => {
         if(props.recs.length > 0){
-            play()
+            console.log("here")
+            // play()
         }
     },[currRec])
 
@@ -74,24 +89,33 @@ function RecommendationDeck (props) {
     useEffect( () => {
         if(props.recs.length > 0){
             console.log(props.recs)
+            console.log("Inital Set")
             setRecs(props.recs)
         }
+       
     })
 
-    if (props.recs.length > 0){
-        return(
-            <div className="rec-deck-wrapper">
-                <div className='track-image-wrapper'>
-                <img className="track-image" key={0} src={props.recs[currRec].blob}/>
-                </div>
-
-            <button onClick ={nextSong}>
-                Next
+    if (props.recs.length > 0) {
+        return (
+          <div className="rec-deck-wrapper">
+            <div className="tracks-wrapper">
+            {props.recs.map((rec, index) => (
+              <div key={index} className='track-image-wrapper' draggable={false}>
+                <img className="track-image" src={rec.blob} />
+              </div>
+            ))}
+            </div>
+      
+            {/* <button onClick={nextSong}>
+              Next
+            </button> */}
+      
+            <button onClick={makePlaylist}>
+              Create Playlist
             </button>
-
           </div>
-        )
-    }
+        );
+      }
 
     return (
         <div>
