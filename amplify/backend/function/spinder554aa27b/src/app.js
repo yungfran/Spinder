@@ -13,15 +13,22 @@ See the License for the specific language governing permissions and limitations 
 	CLIENT_ID
 	CLIENT_SECRET
 Amplify Params - DO NOT EDIT */
-
+var querystring = require('querystring');
 const express = require('express')
+var request = require('request'); // "Request" library
 const bodyParser = require('body-parser')
 const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware')
+
+const CLIENT_ID = process.env.CLIENT_ID
+const CLIENT_SECRET = process.env.CLIENT_SECRET
+const REDIRECT_URI = process.env.REDIRECT_URI
+
 
 // declare a new express app
 const app = express()
 app.use(bodyParser.json())
 app.use(awsServerlessExpressMiddleware.eventContext())
+
 
 // Enable CORS for all methods
 app.use(function(req, res, next) {
