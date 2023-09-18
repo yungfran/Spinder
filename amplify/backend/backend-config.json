@@ -1,0 +1,28 @@
+{
+  "function": {
+    "spinder554aa27b": {
+      "build": true,
+      "dependsOn": [],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_spinder554aa27b_clientId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "spinder554aa27b"
+        }
+      ]
+    },
+    "AMPLIFY_function_spinder554aa27b_clientSecret": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "spinder554aa27b"
+        }
+      ]
+    }
+  }
+}
