@@ -15,6 +15,7 @@
     object-fit: cover;
     object-position: 100% center;
     padding: 1vmin;
+    border-radius: 5px;
   }
 
 .rec-deck-wrapper {
@@ -54,4 +55,25 @@
   
   .odd .track-info {
     order: 2;
+  }
+
+  .intro-text{
+    color:white;
+    font-size:x-large;
+    letter-spacing: 0.4vmin;
+    position: absolute;
+    left:50%;
+    transform: translateX(-50%);
+    margin:2vmin;
+    width: 100%;
+    text-align: center;
+  }
+  
+
+  .playlist-button{
+    background-color: #1DB954;
+    color: white;
+    position: absolute;
+    left:50%;
+    transform: translateX(-50%);
   }

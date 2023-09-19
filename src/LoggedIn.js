@@ -595,6 +595,7 @@ function LoggedIn( props ) {
         console.log(recURL)
 
         const recs = await axios.get(recURL, {headers}).catch( (error) => console.log(error))
+        
         const tracks = recs.data.tracks
         //const images = tracks.map(track => track.album.images[1].url)
 

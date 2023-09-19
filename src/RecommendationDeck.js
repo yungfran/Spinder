@@ -19,11 +19,6 @@ function RecommendationDeck (props) {
 
     const trackRef = useRef(null)
 
-
-    async function nextSong () {
-        setCurrRec(currRec + 1)
-    }
-
     async function getPlayer(){
         const playerURI = "https://api.spotify.com/v1/me/player/devices"
         const headers = {
@@ -36,7 +31,7 @@ function RecommendationDeck (props) {
         setPlayerId(player)
     }
 
-    async function play () {
+    async function play (rec) {
         if (playerId === null) {
             await getPlayer()
         } 
@@ -45,19 +40,13 @@ function RecommendationDeck (props) {
         };
 
         const data = {
-            uris: [recs[currRec].uri]
+            uris: [rec.uri]
         }
         const playURL = "https://api.spotify.com/v1/me/player/play"
 
         // Play the song
-       // const response = await axios.put(playURL,data,{headers}).catch(error => console.log(error));
-        // console.log(response);
-    }
-
-    // Updates our currRec to +1 or 0
-    async function nextSong () {
-        const nextRec = getNextRec()
-        setCurrRec(nextRec)
+      const response = await axios.put(playURL,data,{headers}).catch(error => console.log(error));
+        console.log(response);
     }
 
     async function makePlaylist () {
@@ -66,22 +55,31 @@ function RecommendationDeck (props) {
             Authorization: 'Bearer ' + props.accessToken
         };
         const playlistURI = "https://api.spotify.com/v1/users/"+ props.userId + "/playlists"
-        const body = {
+        let addPlaylistURL = "https://api.spotify.com/v1/playlists/"
+        const createBody = {
             name : "Playlist generated on " + currentDate.getMonth() + "/" + currentDate.getDate(),
             description: "Generated from these attributes: ",
             public: false
         }
-        const createPlaylistResponse = await axios.post(playlistURI,body,{headers}).catch( (error) => console.log(error));
-        console.log(createPlaylistResponse)
+        const createPlaylistResponse = await axios.post(playlistURI,createBody,{headers}).catch( (error) => console.log(error));
+        
+        const addBody = {
+            range_start : 1,
+            insert_before: 3,
+            range_length:2
+        }
+        
+        addPlaylistURL += createPlaylistResponse.data.id + "/tracks?uris="
+        recs.forEach( rec => {
+            console.log(rec.uri)
+            addPlaylistURL += rec.uri + ","
+        })
+        addPlaylistURL= addPlaylistURL.slice(0,-1)
+        console.log(addPlaylistURL)
+        const addToPlaylistResponse = await axios.put(addPlaylistURL,addBody,{headers}).catch( (error) => console.log(error));
+        console.log(addToPlaylistResponse);
     }
 
-    // Get the index of our next recommendation. (we have a finite number of recommendations)
-    function getNextRec () {
-        if (currRec + 1 === recs.length){
-            return 0;
-        }
-        return currRec + 1
-    }
     /* Start Track Movement */
     function startDrag (event) {
         const startXPos = event.clientX;
@@ -105,14 +103,14 @@ function RecommendationDeck (props) {
 
         track.animate(
             [{ transform: `translate(${nextPercentage}%, -30%)` }],
-            { duration: 2000, fill: 'forwards' }
+            { duration: 1200, fill: 'forwards' }
           );
 
         const images = track.getElementsByClassName('track-image');
         for (const image of images) {
         image.animate(
             [{ objectPosition: `${100 + nextPercentage}% center` }],
-            { duration: 1200, fill: 'forwards' }
+            { duration: 900, fill: 'forwards' }
         );
         }
 
@@ -149,30 +147,29 @@ function RecommendationDeck (props) {
     if (props.recs.length > 0) {
         return (
           <div className="rec-deck-wrapper" onMouseDown={startDrag} onMouseMove={draggingTrack} onMouseUp={endDrag}>
-
+            <div className="intro-text">
+                <div>  Drag the screen to see your recommendations </div>
+                <div> Open Spotify and click on a song to listen</div>
+                <button className="playlist-button" onClick={makePlaylist}>
+              Add Recommendations To Playlist
+            </button>
+               
+            </div>
             <div className="tracks-wrapper" ref={trackRef}>
             {props.recs.map((rec, index) => (
-  <div key={index} className={`track-image-wrapper ${index % 2 === 0 ? 'even' : 'odd'}`} draggable={false}>
-    <img className="track-image" src={rec.blob} draggable={false} />
-    <div className="track-info">
-      <div className="track-name">
-        {rec.name}
-      </div>
-      <div className="track-artist">
-        {rec.artist}
-      </div>
-    </div>
-  </div>
-))}
+              <div key={index} className='track-image-wrapper' draggable={false}>
+                <img className="track-image" onClick={() => play(rec)} src={rec.blob} draggable={false}/>
+                <div className="track-name"> 
+                    {rec.name}
+                </div>
+                <div className="track-artist">
+                    {rec.artist}
+                </div>
+              </div>
+            ))}
             </div>
       
-            {/* <button onClick={nextSong}>
-              Next
-            </button> */}
-      
-            <button onClick={makePlaylist}>
-              Create Playlist
-            </button>
+           
           </div>
         );
       }
