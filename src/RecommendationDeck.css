@@ -77,3 +77,13 @@
     left:50%;
     transform: translateX(-50%);
   }
+
+  .start-over-button {
+    margin-top:1%;
+    background-color: #1DB954;
+    color: white;
+    position: absolute;
+    left:50%;
+    transform: translate(-50%,200%);
+
+  }

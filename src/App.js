@@ -1,9 +1,6 @@
-import logo from './logo.svg';
 import './App.css';
-import axios from 'axios';
-import { useLocation } from 'react-router-dom';
 import {useEffect, useState} from 'react';
-import LoggedIn from './LoggedIn';
+import GenerateRecommendations from './GenerateRecommendations';
 
 function App() {
 
@@ -55,7 +52,7 @@ useEffect( () => {
   } else {
     return (
       <div>
-        <LoggedIn access={accessToken} refresh = {refreshToken}/>
+        <GenerateRecommendations access={accessToken} refresh = {refreshToken}/>
       </div>
     )
   }
