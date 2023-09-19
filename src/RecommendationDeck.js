@@ -112,7 +112,7 @@ function RecommendationDeck (props) {
         for (const image of images) {
         image.animate(
             [{ objectPosition: `${100 + nextPercentage}% center` }],
-            { duration: 2000, fill: 'forwards' }
+            { duration: 1200, fill: 'forwards' }
         );
         }
 
@@ -143,18 +143,27 @@ function RecommendationDeck (props) {
             console.log("Inital Set")
             setRecs(props.recs)
         }
-       
     })
+
 
     if (props.recs.length > 0) {
         return (
           <div className="rec-deck-wrapper" onMouseDown={startDrag} onMouseMove={draggingTrack} onMouseUp={endDrag}>
+
             <div className="tracks-wrapper" ref={trackRef}>
             {props.recs.map((rec, index) => (
-              <div key={index} className='track-image-wrapper' draggable={false}>
-                <img className="track-image" src={rec.blob} draggable={false}/>
-              </div>
-            ))}
+  <div key={index} className={`track-image-wrapper ${index % 2 === 0 ? 'even' : 'odd'}`} draggable={false}>
+    <img className="track-image" src={rec.blob} draggable={false} />
+    <div className="track-info">
+      <div className="track-name">
+        {rec.name}
+      </div>
+      <div className="track-artist">
+        {rec.artist}
+      </div>
+    </div>
+  </div>
+))}
             </div>
       
             {/* <button onClick={nextSong}>

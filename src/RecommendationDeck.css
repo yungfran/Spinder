@@ -14,6 +14,7 @@
     height: 57vmin;
     object-fit: cover;
     object-position: 100% center;
+    padding: 1vmin;
   }
 
 .rec-deck-wrapper {
@@ -21,5 +22,36 @@
     width: 100vw;
     background-color: black;
     margin: 0rem;
-    overflow:hidden
 }
+
+.track-name{
+    color:white;
+    font-size: larger;
+    font-weight:bold;
+    padding-bottom: 1vmin;
+}
+
+.track-artist{
+    color:white;
+}
+
+
+.track-image-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+    .track-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    }
+  
+  .even .track-info {
+    order: 1;
+  }
+  
+  .odd .track-info {
+    order: 2;
+  }

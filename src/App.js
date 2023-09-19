@@ -28,6 +28,11 @@ useEffect( () => {
 
 }, [accessToken,refreshToken]);
 
+  function redirectToLogin () {
+    const href = "http://localhost:8888/login"
+    window.location.href = href;
+  }
+
 
 
   if(!accessToken){
@@ -38,10 +43,12 @@ useEffect( () => {
             </div>
           
           <div className = "login-wrapper">
-            <a href="http://localhost:8888/login">
-            {/* <a href="https://7zjeo5uaxotzx2ydrntaznpfou0pftpe.lambda-url.us-east-2.on.aws/login"> */}
+            <button className="login-button" onClick={redirectToLogin}> Login With Spotify </button>
+            {/* <a href="http://localhost:8888/login">
+              
+            {/* <a href="https://7zjeo5uaxotzx2ydrntaznpfou0pftpe.lambda-url.us-east-2.on.aws/login"> 
               Login
-            </a>
+            </a> */}
           </div>
       </div>
     );
