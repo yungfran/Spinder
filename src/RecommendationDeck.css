@@ -85,5 +85,46 @@
     position: absolute;
     left:50%;
     transform: translate(-50%,200%);
+  }
 
+  .remove-button{
+    float:right;
+    color:black;
+    margin:0%
+  }
+
+  .artist-container .track-container{
+    
+  }
+  
+  .generic-dropdown {
+    width:100%
+  }
+
+  
+
+  .dropdown-wrapper{
+    display:flex;
+    align-items: center;
+    margin-bottom: 5% !important;
+    padding-left: 5%;
+  }
+
+
+  .form-elem{
+    width: 100%;
+  }
+  
+  .list-wrapper {
+    padding-inline-start: 0px !important;
+  }
+
+  .add-button {
+    margin-bottom: 5% !important;
+    margin-top: 5% !important;
+    margin-left: 5% !important;
+  }
+
+  .generate-button{
+    margin-left:5% !important;
   }

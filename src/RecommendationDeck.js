@@ -86,13 +86,13 @@ function RecommendationDeck (props) {
 
         const track = trackRef.current;
 
-        const posChange = startDragPos - event.clientX;
+        const posChange = (startDragPos - event.clientX) * 0.3;
         const maxChange = window.innerWidth / 2;
 
         const percentage = (posChange / maxChange) * 100;
         const nextPercentageUnconstrained = parseFloat(prevPercentage) + percentage
+       
         const nextPercentage = Math.max(Math.min(nextPercentageUnconstrained, 0), -100);
-
         setCurrPercentage(nextPercentage)
 
         track.animate(

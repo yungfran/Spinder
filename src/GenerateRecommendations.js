@@ -159,6 +159,7 @@ function GenerateRecommendations( props ) {
             await getTopSongsArtists("short_term")
         } else {
             console.log("doing nothing, already calculated")
+            setCurrentSonicTaste(JSON.parse(calculatedTastes))
         }
     }
 
@@ -499,16 +500,16 @@ function GenerateRecommendations( props ) {
 
     return(
         <div className="generate-recs-wrapper">
-            <div>
-                <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="form-wrapper">
+                <form onSubmit={handleSubmit(onSubmit)} className="form-elem">
 
                 <label>Artists:</label>
-                <ul>
+                <ul className="list-wrapper">
                     {artistFields.map((field, index) => (
-                        <li key={field.id}>
+                        <li key={field.id} className="artist-container" >
                             <Controller name={`artists[${index}].name`} control={control}  defaultValue={field.name}
                                 render={({ field }) => (
-                                    <div>
+                                    <div className="dropdown-wrapper">
                                         <Select
                                             {...field}
                                             options={artistList.map((option) => ({
@@ -516,37 +517,38 @@ function GenerateRecommendations( props ) {
                                                 label: option,
                                             }))}
                                             isSearchable={true}
-                                            placeholder="Select an artist..." />
+                                            placeholder="Select an artist..." 
+                                            className ="generic-dropdown"/>
                                         <button type="button" className="remove-button" onClick={() => removeArtist(index)}> X  </button>
                                     </div> )} />
                         </li> ))}
                 </ul>
 
-                <button type="button" onClick={() => appendArtist({ name: "" })}> Add Artist  </button>
+                <button type="button" className="add-button" onClick={() => appendArtist({ name: "" })}> Add Artist  </button>
                 <label>Tracks:</label>
-                <ul>
+                <ul className="list-wrapper">
                     {trackFields.map((field, index) => (
-                        <li key={field.id}>
+                        <li key={field.id} className="track-container">
                             <Controller name={`tracks[${index}].name`} control={control}  defaultValue={field.name}
                                 render={({ field }) => (
-                                    <div>
+                                    <div className="dropdown-wrapper">
                                         <Select {...field}
                                             options={trackList.map((option) => ({
                                                 value: option,
                                                 label: option, }))}
-                                            isSearchable={true} placeholder="Select a track..." />
+                                            isSearchable={true} className="generic-dropdown" placeholder="Select a track..." />
                                         <button type="button"  className="remove-button" onClick={() => removeTrack(index)} > X  </button>
                                     </div>)} />
                         </li> ))}
                 </ul>
 
-                <button type="button" onClick={() => appendTrack({ name: "" })}> Add Track  </button>
+                <button type="button" className="add-button" onClick={() => appendTrack({ name: "" })}> Add Track  </button>
                 
                 <label>Valence</label>
                 <input className="taste-input"
                     placeholder={
                         currentSonicTaste !== null
-                        ? "Average Valence: " + currentSonicTaste.valence.avg.toFixed(4)
+                        ? "Your average Valence: " + currentSonicTaste.valence.avg.toFixed(4)
                         : "Default Placeholder Value"
                     } {...register("Valence")}   />
                 <input className="taste-input" placeholder="Default Valence Range: .3" {...register("ValenceRange")} />
@@ -554,7 +556,7 @@ function GenerateRecommendations( props ) {
                 <label>Danceability</label>
                 <input className="taste-input" placeholder={
                         currentSonicTaste !== null
-                        ? "Average Danceability: " + currentSonicTaste.danceability.avg.toFixed(4)
+                        ? "Your average Danceability: " + currentSonicTaste.danceability.avg.toFixed(4)
                         : "Default Placeholder Value"
                     } {...register("Danceability")}  />
                 <input className="taste-input" placeholder="Default Danceability Range: .3" {...register("DanceabilityRange")} />
@@ -563,7 +565,7 @@ function GenerateRecommendations( props ) {
                 <label>Energy</label> <input className="taste-input"
                     placeholder={
                         currentSonicTaste !== null
-                        ? "Average Energy: " + currentSonicTaste.energy.avg.toFixed(4)
+                        ? "Your average Energy: " + currentSonicTaste.energy.avg.toFixed(4)
                         : "Default Placeholder Value"
                     } {...register("Energy")}  />
 
@@ -573,12 +575,12 @@ function GenerateRecommendations( props ) {
                 <input className="taste-input"
                     placeholder={
                         currentSonicTaste !== null
-                        ? "Average Tempo: " + currentSonicTaste.tempo.avg.toFixed(4)
+                        ? "Your average Tempo: " + currentSonicTaste.tempo.avg.toFixed(4)
                         : "Default Placeholder Value"
                     } {...register("Tempo")} />
                 <input className="taste-input" placeholder="Default Tempo Range: .3" {...register("TempoRange")} />
 
-                <button type="submit">Generate</button>
+                <button type="submit" className="generate-button"> Generate</button>
             </form>
             </div>
         );
